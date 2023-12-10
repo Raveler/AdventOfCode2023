@@ -49,28 +49,6 @@ def normal_to_double(x, y):
 
 def flood_fill(inside_map, w, h, x, y):
 
-    # don't go too far outside
-    if x < 0 or y < 0 or x > w or y > h:
-        return
-
-    # already visited or part of pipe - don't flood fill further
-    if inside_map[(x, y)]["in_pipe"] or inside_map[(x, y)]["flood_filled"]:
-        return
-
-    inside_map[(x, y)] = {
-        "in_pipe": False,
-        "flood_filled": True,
-    }
-
-    for neighbour in neighbours:
-        new_x = x + neighbour[0]
-        new_y = y + neighbour[1]
-
-        flood_fill(inside_map, w, h, new_x, new_y)
-
-
-def flood_fill_2(inside_map, w, h, x, y):
-
     to_fill = [(x,y)]
     while len(to_fill) > 0:
         coord = to_fill.pop(0)
@@ -184,7 +162,7 @@ def puzzle1(path):
 
     for x in [-1, dw]:
         for y in [-1, dh]:
-            flood_fill_2(inside_map, dw, dh, x, y)
+            flood_fill(inside_map, dw, dh, x, y)
 
     for y in range(dh-1, -1, -1):
         s = ""
