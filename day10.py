@@ -83,7 +83,6 @@ def flood_fill_2(inside_map, w, h, x, y):
             "in_pipe": False,
             "flood_filled": True,
         }
-        print("Result for " + str(x) + "," + str(y) + ": " + str(inside_map[(x, y)]))
 
         next_fill = []
 
@@ -102,7 +101,6 @@ def flood_fill_2(inside_map, w, h, x, y):
             if (new_x, new_y) in to_fill:
                 continue
 
-            print("Result for " + str(new_x) + "," + str(new_y) + ": " + str(inside_map[(new_x, new_y)]))
             next_fill.append((new_x, new_y))
 
         to_fill.extend(next_fill)
