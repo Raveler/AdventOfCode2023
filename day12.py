@@ -2,11 +2,22 @@ import math
 from collections import defaultdict
 import re
 from collections import Counter
+from functools import lru_cache, cache
 from pprint import pprint
 
+@cache
+def cached_return_arrangements(springs, active_group, groups_str, total_springs_left, total_springs_left_in_groups):
+    if len(groups_str) == 0:
+        return calculate_arrangements(springs, active_group, [], total_springs_left, total_springs_left_in_groups)
+    groups = [int(x) for x in groups_str.split(",")]
+    return calculate_arrangements(springs, active_group, groups, total_springs_left, total_springs_left_in_groups)
 
 
-def calculate_arrangements(springs, active_group, groups, idx, total_springs_left = None, total_springs_left_in_groups = None):
+def merge_groups(groups):
+    return ','.join([str(x) for x in groups])
+
+
+def calculate_arrangements(springs, active_group, groups, total_springs_left = None, total_springs_left_in_groups = None):
 
     if total_springs_left is None:
         total_springs_left = springs.count('#')
@@ -20,7 +31,7 @@ def calculate_arrangements(springs, active_group, groups, idx, total_springs_lef
         return 0
 
     # we reached the end
-    if idx >= len(springs):
+    if len(springs) == 0:
 
         #print("Reached final state with " + str(springs) + " and " + str(groups))
 
@@ -34,21 +45,19 @@ def calculate_arrangements(springs, active_group, groups, idx, total_springs_lef
             return 1
 
 
-    c = springs[idx]
+    c = springs[0]
     all_arrangements = []
 
     if c == '?':
         all_arrangements = 0
-        new_springs = springs.copy()
-        new_springs[idx] = '#'
-        all_arrangements += calculate_arrangements(new_springs, active_group, groups, idx, total_springs_left + 1, total_springs_left_in_groups)
-        new_springs = springs.copy()
-        new_springs[idx] = '.'
-        all_arrangements += calculate_arrangements(new_springs, active_group, groups, idx, total_springs_left, total_springs_left_in_groups)
+        new_springs = '#' + springs[1:]
+        all_arrangements += cached_return_arrangements(new_springs, active_group, merge_groups(groups), total_springs_left + 1, total_springs_left_in_groups)
+        new_springs = '.' + springs[1:]
+        all_arrangements += cached_return_arrangements(new_springs, active_group, merge_groups(groups), total_springs_left, total_springs_left_in_groups)
         return all_arrangements
 
     # at this point we always have . or #
-    print("Evaluate " + str(springs) + " at " + str(idx) + " with active group " + str(active_group) + " and groups " + str(groups))
+    #print("Evaluate " + str(springs) + " with active group " + str(active_group) + " and groups " + str(groups))
 
     # we have a spring - we NEED to be in a group or activate one
     if c == '#':
@@ -65,7 +74,8 @@ def calculate_arrangements(springs, active_group, groups, idx, total_springs_lef
             else:
                 new_groups = groups.copy()
                 new_active_group = new_groups.pop(0) - 1 # already got one # covered
-                return calculate_arrangements(springs, new_active_group, new_groups, idx + 1, total_springs_left - 1, total_springs_left_in_groups - 1)
+                new_springs = springs[1:]
+                return cached_return_arrangements(new_springs, new_active_group, merge_groups(new_groups), total_springs_left - 1, total_springs_left_in_groups - 1)
 
 
         else:
@@ -76,7 +86,8 @@ def calculate_arrangements(springs, active_group, groups, idx, total_springs_lef
                 return 0
 
             else:
-                return calculate_arrangements(springs, active_group - 1, groups, idx + 1, total_springs_left, total_springs_left_in_groups)
+                new_springs = springs[1:]
+                return cached_return_arrangements(new_springs, active_group - 1, merge_groups(groups), total_springs_left, total_springs_left_in_groups)
 
     # c == '.'
     else:
@@ -84,13 +95,15 @@ def calculate_arrangements(springs, active_group, groups, idx, total_springs_lef
         if active_group is None:
 
             # we just continue like this since we can't activate
-            return calculate_arrangements(springs, active_group, groups, idx + 1, total_springs_left, total_springs_left_in_groups)
+            new_springs = springs[1:]
+            return cached_return_arrangements(new_springs, active_group, merge_groups(groups), total_springs_left, total_springs_left_in_groups)
 
         else:
 
             # active group is donezo - we de-activate it
             if active_group == 0:
-                return calculate_arrangements(springs, None, groups, idx + 1, total_springs_left, total_springs_left_in_groups)
+                new_springs = springs[1:]
+                return cached_return_arrangements(new_springs, None, merge_groups(groups), total_springs_left, total_springs_left_in_groups)
 
             #  else, bad! we can't skip because we have an active group
             else:
@@ -106,18 +119,18 @@ def puzzle(path):
     repeats = 5
     for line in lines:
         split = line.split(" ")
-        springs = list(split[0].strip())
+        springs = split[0].strip()
         groups = [int(x) for x in split[1].split(",")]
 
-        repeat_springs = []
+        repeat_springs = ""
         repeat_groups = []
         for i in range(0, repeats):
             if i > 0:
-                repeat_springs.append("?")
-            repeat_springs.extend(springs)
+                repeat_springs += "?"
+            repeat_springs += springs
             repeat_groups.extend(groups)
 
-        arrangements = calculate_arrangements(repeat_springs, None, repeat_groups, 0)
+        arrangements = calculate_arrangements(repeat_springs, None, repeat_groups)
         print("Task " + str(repeat_springs) + " with " + str(repeat_groups) + " groups has " + str(arrangements) + " valid states")
         sum += arrangements
 
@@ -125,4 +138,4 @@ def puzzle(path):
 
 
 
-puzzle("input12-3.txt")
+puzzle("input12-2.txt")
