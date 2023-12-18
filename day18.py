@@ -47,7 +47,8 @@ def puzzle(path):
     edge_sum = 0
     mini_grid = set()
     mini_step_size = 1
-    mini_step_size = 10000
+    mini_step_size = 100000
+    corners = []
     for line in lines:
         split = line.split(" ")
         dir = input_map[split[0]]
@@ -58,9 +59,6 @@ def puzzle(path):
         dir = neighbour_dirs[int(color[7])]
         steps = int(color[2:7], 16)
         print("Move " + str(steps) + " in dir " + str(dir))
-
-        if dir == prev_dir:
-            raise "UHH"
 
         min_y = min(min_y, pos[1])
         max_y = max(max_y, pos[1])
@@ -76,12 +74,11 @@ def puzzle(path):
         min_y = min(min_y, pos[1])
         max_y = max(max_y, pos[1])
 
-        if pos[1] == old_pos[1] and False:
-            min_x = min(pos[0], old_pos[0])
-            max_x = max(pos[0], old_pos[0])
-            horizontal_edges.add((min_x, max_x, pos[1]))
-        else:
-            borders.append((old_pos, pos))
+        # we now calculate the borders by offsetting them a bit to the edges of the tile
+        side_dir = (-dir[1] * 0.5, dir[0] * 0.5)
+        edge_old_pos = (old_pos[0] + side_dir[0], old_pos[1] + side_dir[1])
+        edge_pos = (pos[0] + side_dir[0], pos[1] + side_dir[1])
+        borders.append((edge_old_pos, edge_pos))
 
 
         mini_steps = round(steps / mini_step_size)
@@ -104,6 +101,33 @@ def puzzle(path):
 
     print("Final pos: " + str(pos))
 
+    def clamp01(v):
+        return min(1, max(-1, v))
+
+    pprint(borders)
+
+    # correct the edges
+    for i in range(0, len(borders)):
+        prev_i = (i-1+len(borders)) % len(borders)
+        prev_line = borders[prev_i]
+        next_line = borders[i]
+        prev_dir = (clamp01(prev_line[1][0] - prev_line[0][0]), clamp01(prev_line[1][1] - prev_line[0][1]))
+        next_dir = (clamp01(next_line[1][0] - next_line[0][0]), clamp01(next_line[1][1] - next_line[0][1]))
+
+        next_dir_rot = (next_dir[1], -next_dir[0])
+        if prev_dir != next_dir_rot:
+            borders[i] = ((next_line[0][0] - next_dir[0] * 0.5, next_line[0][1] - next_dir[1] * 0.5), borders[i][1])
+            borders[prev_i] = (borders[prev_i][0], (prev_line[1][0] + prev_dir[0] * 0.5, prev_line[1][1] + prev_dir[1] * 0.5))
+
+        else:
+
+            borders[i] = ((next_line[0][0] + next_dir[0] * 0.5, next_line[0][1] + next_dir[1] * 0.5), borders[i][1])
+            borders[prev_i] = (borders[prev_i][0], (prev_line[1][0] - prev_dir[0] * 0.5, prev_line[1][1] - prev_dir[1] * 0.5))
+
+
+
+    pprint(borders)
+
     mini_min_x = min([x[0] for x in mini_grid])
     mini_max_x = max([x[0] for x in mini_grid])
     mini_min_y = min([x[1] for x in mini_grid])
@@ -122,8 +146,6 @@ def puzzle(path):
                 s += "."
         print(s)
 
-
-
     xs = list(xs)
     ys = list(ys)
     xs.sort()
@@ -132,7 +154,7 @@ def puzzle(path):
     def in_range(border, y):
         border_min_y = min(border[0][1], border[1][1])
         border_max_y = max(border[0][1], border[1][1])
-        return border_min_y <= y <= border_max_y
+        return border_min_y < y < border_max_y
 
     def out_of_range(border, y):
         border_max_y = max(border[0][1], border[1][1])
@@ -146,8 +168,11 @@ def puzzle(path):
     borders.sort(key=lambda x: min(x[0][1], x[1][1]))
     active_edges = []
 
+    volume = 0
     for y in range(min_y, max_y+1):
-        #print("Y: " + str(y))
+        y_offset = y - min_y
+        if ()
+        print("Y: " + str(y))
 
         # pop old edges
         active_edges = [border for border in active_edges if in_range(border, y)]
@@ -169,14 +194,13 @@ def puzzle(path):
 
         #print(intervals)
         line_volume = 0
-        in_trench = intervals[0][0] == intervals[0][1]
         in_trench = True
         for i in range(0, len(intervals)-1):
-            x_start = intervals[i][1] + 1
-            x_end = intervals[i+1][0] - 1
+            x_start = intervals[i][1]
+            x_end = intervals[i+1][0]
             if x_start <= x_end:
                 if in_trench:
-                    new_volume = x_end - x_start + 1
+                    new_volume = round(x_end - x_start)
                     #print("New volume " + str(new_volume) +  " from " + str(x_start) + " to " + str(x_end))
                     line_volume += new_volume
                 in_trench = not in_trench
@@ -193,4 +217,4 @@ def puzzle(path):
 
 
 
-puzzle("input18-1.txt")
+puzzle("input18-2.txt")
