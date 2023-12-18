@@ -34,25 +34,13 @@ def puzzle(path):
     pos = (0, 0)
     #grid[pos] = True
 
-    min_pos = (10000000, 10000000)
-    max_pos = (-10000000, -10000000)
+    min_y = 100000000
+    max_y = -100000000
 
-    grid_rows = {}
+    borders = []
 
-    def add_interval(y, x1, x2):
-        if y not in grid_rows:
-            grid_rows[y] = list()
-        grid_rows[y].append((x1, x2))
-
-    #add_pos((0, 0))
-
-    def add_pos(pos):
-        y = pos[1]
-        x = pos[0]
-        if y not in grid_rows:
-            grid_rows[y] = list()
-        grid_rows[y].append(x)
-
+    volume = 0
+    horizontal_edges = set()
     for line in lines:
         split = line.split(" ")
         dir = input_map[split[0]]
@@ -60,60 +48,97 @@ def puzzle(path):
         color = split[2]
         print(color)
 
-        #dir = neighbour_dirs[int(color[7])]
-        #steps = int(color[2:7], 16)
+        dir = neighbour_dirs[int(color[7])]
+        steps = int(color[2:7], 16)
         print("Move " + str(steps) + " in dir " + str(dir))
 
-        # we move horizontally - only add the end point
-        if dir[1] == 0:
-            add_pos(pos)
-            pos = (pos[0] + dir[0] * steps, pos[1] + dir[1] * steps)
-            add_pos(pos)
+        min_y = min(min_y, pos[1])
+        max_y = max(max_y, pos[1])
 
+        old_pos = pos
+        pos = (pos[0] + dir[0] * steps, pos[1] + dir[1] * steps)
+
+        min_y = min(min_y, pos[1])
+        max_y = max(max_y, pos[1])
+
+        if pos[1] == old_pos[1]:
+            min_x = min(pos[0], old_pos[0])
+            max_x = max(pos[0], old_pos[0])
+            horizontal_edges.add((min_x, max_x, pos[1]))
         else:
+            borders.append((old_pos, pos))
 
-            if dir[1] == 1:
-                add_pos(pos)
 
-            for i in range(0, steps):
-                pos = (pos[0] + dir[0], pos[1] + dir[1])
-                add_pos(pos)
-                print(pos)
+        # immediately count the volume of the borders
+        volume += steps
 
-                min_pos = (min(min_pos[0], pos[0]), min(min_pos[1], pos[1]))
-                max_pos = (max(max_pos[0], pos[0]), max(max_pos[1], pos[1]))
+    def in_range(border, y):
+        border_min_y = min(border[0][1], border[1][1])
+        border_max_y = max(border[0][1], border[1][1])
+        return border_min_y <= y <= border_max_y
 
-    volume = 0
-    print(grid_rows)
-    for y in grid_rows:
-        intervals = grid_rows[y]
-        intervals.sort(key=lambda x: x[1])
+    def out_of_range(border, y):
+        border_max_y = max(border[0][1], border[1][1])
+        return border_max_y <= y
+
+    def ends_at(border, y):
+        return border[0][1] == y or border[1][1] == y
+
+
+    # sort by min y
+    borders.sort(key=lambda x: min(x[0][1], x[1][1]))
+    active_edges = []
+
+    for y in range(min_y, max_y+1):
+        #print("Y: " + str(y))
+
+        # pop old edges
+        active_edges = [border for border in active_edges if in_range(border, y)]
+
+        # add new edges
+        while len(borders) > 0:
+            if out_of_range(borders[0], y):
+                borders.pop(0)
+            elif in_range(borders[0], y):
+                active_edges.append(borders.pop(0))
+
+            else:
+                break
+
+        #print(active_edges)
+
+        active_edges.sort(key=lambda x: min(x[0][0], x[1][0]))
 
         in_trench = False
-        prev_x2 = None
-        print(intervals)
-        for i in range(0, len(intervals)):
-            interval = intervals[i]
-            x1 = interval[0]
-            x2 = interval[1]
 
-            # we moved along the x-axis - we are full part of the volume
-            if x1 != x2:
-                volume += x2 - x1 + 1
+        xs = []
+        line_volume = 0
+        i = 0
 
-            # vertical movement
-            else:
-                if in_trench:
-                    volume += x2 - prev_x2 + 1
-                in_trench = not in_trench
-s
-            prev_x2 = x2
+        while i < len(active_edges) - 1:
+
+            edge1 = active_edges[i]
+            edge2 = active_edges[i+1]
+
+            if ends_at(edge1, y) and ends_at(edge2, y) and (edge1[0][0], edge2[0][0], y) in horizontal_edges:
+                i += 1
+                continue
+
+            in_trench = not in_trench
+
+            if in_trench:
+                line_volume += edge2[0][0] - edge1[0][0] - 1
+
+            i += 1
+
+
+        volume += line_volume
+        #print(line_volume)
+
+
 
 
     print("The total volume is " + str(volume))
-
-
-
 
 
 
