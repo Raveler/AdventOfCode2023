@@ -1,3 +1,4 @@
+import itertools
 import math
 from collections import defaultdict
 import re
@@ -6,43 +7,36 @@ from functools import lru_cache, cache
 from pprint import pprint
 from queue import PriorityQueue
 import random
+import heapq
 
 
-class _Wrapper:
-    def __init__(self, item, key):
-        self.item = item
-        self.key = key
+pq = []                         # list of entries arranged in a heap
+entry_finder = {}               # mapping of tasks to entries
+REMOVED = '<removed-task>'      # placeholder for a removed task
+counter = itertools.count()     # unique sequence count
 
-    def __lt__(self, other):
-        return self.key(self.item) < other.key(other.item)
+def add_task(task, priority=0):
+    'Add a new task or update the priority of an existing task'
+    if task in entry_finder:
+        remove_task(task)
+    count = next(counter)
+    entry = [priority, count, task]
+    entry_finder[task] = entry
+    heapq.heappush(pq, entry)
 
-    def __eq__(self, other):
-        return self.key(self.item) == other.key(other.item)
+def remove_task(task):
+    'Mark an existing task as REMOVED.  Raise KeyError if not found.'
+    entry = entry_finder.pop(task)
+    entry[-1] = REMOVED
 
-
-class KeyPriorityQueue(PriorityQueue):
-    def __init__(self, key):
-        self.key = key
-        super().__init__()
-
-    def _get(self):
-        wrapper = super()._get()
-        return wrapper.item
-
-    def _put(self, item):
-        super()._put(_Wrapper(item, self.key))
-
-
-def print_grid(energized, w, h):
-    for y in range(h-1, -1, -1):
-        s = ""
-        for x in range(0, w):
-            if (x, y) in energized:
-                s += "#"
-            else:
-                s += "."
-        print(s)
-
+def pop_task():
+    'Remove and return the lowest priority task. Raise KeyError if empty.'
+    while pq:
+        priority, count, task = heapq.heappop(pq)
+        if task is not REMOVED:
+            del entry_finder[task]
+            return (priority, task)
+    raise KeyError('pop from an empty priority queue')
 
 
 def puzzle(path):
@@ -51,122 +45,82 @@ def puzzle(path):
     w = len(lines[0].strip())
     h = len(lines)
 
-    pending = KeyPriorityQueue(key=lambda x: x[1]["tie_breaker"])
-
-    tie_breaker = 0
-
-
     grid = {}
     for x in range(0, w):
         for y in range(0, h):
             grid[(x, y)] = int(lines[y][x])
 
+    dist = {}
 
-    def get_point(pos, dir, prev_cost, steps, visited):
-        nonlocal tie_breaker
-        tie_breaker += 1
-        return {
-            "pos": pos,
-            "dir": dir,
-            "cost": prev_cost + grid[pos],
-            "steps": steps,
-            "tie_breaker": tie_breaker,
-            "visited": visited
-        }
+    def add_start_point(pos, dir):
+        start_point = (pos, dir, 0)
+        dist[start_point] = 0
+        add_task(start_point, 0)
+
+    add_start_point((0, 0), (1, 0))
+    add_start_point((0, 0), (0, 1))
 
 
-    def add_point(pos, dir, prev_cost, steps, visited):
-        visited = visited.copy()
-        visited.append(pos)
-        point = get_point(pos, dir, prev_cost, steps, visited)
-        pending.put((point["cost"], point))
+    def add_point(parent_pos, pos, dir, cost, steps):
+        p = (pos, dir, steps)
+        dist[p] = cost
+        add_task(p, cost)
+        #print("Add point " + str(pos) + " coming from " + str(parent_pos) + " with dir " + str(dir) + " and cost " + str(cost) + " and steps " + str(steps))
 
 
-    def try_add_point_in_dir(pos, dir, prev_cost, steps, visited):
+    def try_add_point_in_dir(pos, dir, cost, steps):
 
-        if steps > 3:
-            return
-
+        old_pos = pos
         pos = (pos[0] + dir[0], pos[1] + dir[1])
 
         if not is_valid(pos):
             return
 
-        if pos in visited:
+        p = (pos, dir, steps)
+        new_cost = cost + grid[pos]
+
+
+        if p in dist and new_cost >= dist[p]:
             return
 
-        add_point(pos, dir, prev_cost, steps, visited)
+        add_point(old_pos, pos, dir, new_cost, steps)
 
 
     def is_valid(pos):
         return 0 <= pos[0] < w and 0 <= pos[1] < h
 
 
-    add_point((1, 0), (1, 0), 0, 1, list())
-    add_point((0, 1), (0, 1), 0, 1, list())
-    min_cost = 0
-    min_visited = list()
+    def solve(min, max):
+        while pq:
 
-    dist = {}
-    prev = {}
-    Q = []
-    for x in range(0, w):
-        for y in range(0, h):
-            dist[(x, y)] = -1
-            prev[(x, y)] = None
-            Q.append((x, y))
+            task = pop_task()
+            #print(task)
+            cost = task[0]
+            u = task[1]
 
-    dist[(0, 0)] = 0
+            pos = u[0]
+            dir = u[1]
+            steps = u[2]
 
+            if pos == (w-1, h-1) and steps >= min:
+                return cost
 
+            #steps = steps_grid[u]
 
-    while len(Q) > 0:
+            # otherwise, we keep adding points
+            if steps < max:
+                try_add_point_in_dir(pos, dir, cost, steps + 1)
 
-        Q.sort(key=lambda x: dist[x])
-        u = Q.pop(0)
+            if steps >= min:
+                clockwise_dir = (-dir[1], dir[0])
+                try_add_point_in_dir(pos, clockwise_dir, cost, 1)
+                anticlockwise_dir = (dir[1], -dir[0])
+                try_add_point_in_dir(pos, anticlockwise_dir, cost, 1)
 
-        # otherwise, we keep adding points
-        try_add_point_in_dir(point["pos"], point["dir"], point["cost"], point["steps"] + 1, point["visited"])
-        clockwise_dir = (-point["dir"][1], point["dir"][0])
-        try_add_point_in_dir(point["pos"], clockwise_dir, point["cost"], 1, point["visited"])
-        anticlockwise_dir = (point["dir"][1], -point["dir"][0])
-        try_add_point_in_dir(point["pos"], anticlockwise_dir, point["cost"], 1, point["visited"])
-
-
-
-
-    while not pending.empty():
-
-        point_tuple = pending.get()
-        point = point_tuple[1]
-
-        # reached the end
-        if point["pos"] == (w-1, h-1):
-            min_cost = round(point["cost"])
-            min_visited = point["visited"]
-            break
-
-
-        # otherwise, we keep adding points
-        try_add_point_in_dir(point["pos"], point["dir"], point["cost"], point["steps"] + 1, point["visited"])
-        clockwise_dir = (-point["dir"][1], point["dir"][0])
-        try_add_point_in_dir(point["pos"], clockwise_dir, point["cost"], 1, point["visited"])
-        anticlockwise_dir = (point["dir"][1], -point["dir"][0])
-        try_add_point_in_dir(point["pos"], anticlockwise_dir, point["cost"], 1, point["visited"])
+    #min_cost = solve(0, 3)
+    min_cost = solve(4, 10)
+    print("The min cost to reach " + str(w-1) + "," + str(h-1) + " is " + str(min_cost))
 
 
 
-
-    print("The min cost to reach the end is " + str(min_cost))
-
-    pprint(min_visited)
-
-
-
-
-
-
-
-
-
-puzzle("input17-1.txt")
+puzzle("input17-2.txt")
