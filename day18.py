@@ -40,15 +40,12 @@ def puzzle(path):
     borders = []
 
     volume = 0
-    horizontal_edges = set()
     xs = set()
     ys = set()
-    prev_dir = None
     edge_sum = 0
     mini_grid = set()
-    mini_step_size = 1
+    #mini_step_size = 1
     mini_step_size = 100000
-    corners = []
     for line in lines:
         split = line.split(" ")
         dir = input_map[split[0]]
@@ -79,7 +76,6 @@ def puzzle(path):
         edge_old_pos = (old_pos[0] + side_dir[0], old_pos[1] + side_dir[1])
         edge_pos = (pos[0] + side_dir[0], pos[1] + side_dir[1])
         borders.append((edge_old_pos, edge_pos))
-
 
         mini_steps = round(steps / mini_step_size)
         mini_pos = (round(old_pos[0] / mini_step_size), round(old_pos[1] / mini_step_size))
@@ -146,11 +142,6 @@ def puzzle(path):
                 s += "."
         print(s)
 
-    xs = list(xs)
-    ys = list(ys)
-    xs.sort()
-    ys.sort()
-
     def in_range(border, y):
         border_min_y = min(border[0][1], border[1][1])
         border_max_y = max(border[0][1], border[1][1])
@@ -159,10 +150,6 @@ def puzzle(path):
     def out_of_range(border, y):
         border_max_y = max(border[0][1], border[1][1])
         return border_max_y < y
-
-    def ends_at(border, y):
-        return border[0][1] == y or border[1][1] == y
-
 
     # sort by min y
     borders.sort(key=lambda x: min(x[0][1], x[1][1]))
