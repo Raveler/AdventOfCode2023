@@ -68,9 +68,11 @@ def puzzle(path):
         else:
             borders.append((old_pos, pos))
 
-
         # immediately count the volume of the borders
         volume += steps
+
+    print("Final pos: " + str(pos))
+
 
     def in_range(border, y):
         border_min_y = min(border[0][1], border[1][1])
@@ -130,7 +132,6 @@ def puzzle(path):
                 line_volume += edge2[0][0] - edge1[0][0] - 1
 
             i += 1
-
 
         volume += line_volume
         #print(line_volume)
